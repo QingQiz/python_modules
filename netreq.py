@@ -38,7 +38,9 @@ def url_content(url, encoding='', headers={}, data={}, params={}, s=None):
     if s is None:
         s = requests.Session()
 
-    r = s.post(url, data=data, params=params, headers=headers)
+    s.headers.update(headers)
+
+    r = s.post(url, data=data, params=params)
 
     if r.encoding:
         r.encoding = encoding
@@ -50,7 +52,9 @@ def url_html(url, encoding='', headers={}, data={}, params={}, s=None):
     if s is None:
         s = requests.Session()
 
-    r = s.post(url, data=data, params=params, headers=headers)
+    s.headers.update(headers)
+
+    r = s.post(url, data=data, params=params)
 
     if r.encoding:
         r.encoding = encoding
@@ -62,7 +66,9 @@ def url_json(url, encoding='', headers={}, data={}, params={}, s=None):
     if s is None:
         s = requests.Session()
 
-    r = s.post(url, data=data, params=params, headers=headers)
+    s.headers.update(headers)
+
+    r = s.post(url, data=data, params=params)
 
     if r.encoding:
         r.encoding = encoding
