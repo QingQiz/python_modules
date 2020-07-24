@@ -34,13 +34,13 @@ def login_aoxiang(username, password, s=None):
     return s
 
 
-def url_content(url, encoding='', headers={}, data={}, params={}, s=None):
+def url_content(url, encoding='', headers={}, params={}, s=None):
     if s is None:
         s = requests.Session()
 
     s.headers.update(headers)
 
-    r = s.post(url, data=data, params=params)
+    r = s.get(url, params=params)
 
     if r.encoding:
         r.encoding = encoding
@@ -48,13 +48,13 @@ def url_content(url, encoding='', headers={}, data={}, params={}, s=None):
     return r.content
 
 
-def url_html(url, encoding='', headers={}, data={}, params={}, s=None):
+def url_html(url, encoding='', headers={}, params={}, s=None):
     if s is None:
         s = requests.Session()
 
     s.headers.update(headers)
 
-    r = s.post(url, data=data, params=params)
+    r = s.get(url, params=params)
 
     if r.encoding:
         r.encoding = encoding
@@ -62,13 +62,13 @@ def url_html(url, encoding='', headers={}, data={}, params={}, s=None):
     return r.text
 
 
-def url_json(url, encoding='', headers={}, data={}, params={}, s=None):
+def url_json(url, encoding='', headers={}, params={}, s=None):
     if s is None:
         s = requests.Session()
 
     s.headers.update(headers)
 
-    r = s.post(url, data=data, params=params)
+    r = s.get(url, params=params)
 
     if r.encoding:
         r.encoding = encoding
@@ -76,7 +76,7 @@ def url_json(url, encoding='', headers={}, data={}, params={}, s=None):
     return r.json()
 
 
-def urls_content(urls, encoding='', headers={}, data={}, params={}, s=None, job=8):
+def urls_content(urls, encoding='', headers={}, params={}, s=None, job=8):
     if s is None:
         s = requests.Session()
 
@@ -85,7 +85,7 @@ def urls_content(urls, encoding='', headers={}, data={}, params={}, s=None, job=
     return parallel.init(job)(url_content, params)
 
 
-def urls_html(urls, encoding='', headers={}, data={}, params={}, s=None, job=8):
+def urls_html(urls, encoding='', headers={}, params={}, s=None, job=8):
     if s is None:
         s = requests.Session()
 
@@ -94,7 +94,7 @@ def urls_html(urls, encoding='', headers={}, data={}, params={}, s=None, job=8):
     return parallel.init(job)(url_html, params)
 
 
-def urls_json(urls, encoding='', headers={}, data={}, params={}, s=None, job=8):
+def urls_json(urls, encoding='', headers={}, params={}, s=None, job=8):
     if s is None:
         s = requests.Session()
 
