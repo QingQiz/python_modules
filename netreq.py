@@ -80,7 +80,7 @@ def urls_content(urls, encoding='', headers={}, params={}, s=None, job=8):
     if s is None:
         s = requests.Session()
 
-    params = [[url, encoding, headers, data, params, s] for url in urls]
+    params = [[url, encoding, headers, params, s] for url in urls]
 
     return parallel.init(job)(url_content, params)
 
@@ -89,7 +89,7 @@ def urls_html(urls, encoding='', headers={}, params={}, s=None, job=8):
     if s is None:
         s = requests.Session()
 
-    params = [[url, encoding, headers, data, params, s] for url in urls]
+    params = [[url, encoding, headers, params, s] for url in urls]
 
     return parallel.init(job)(url_html, params)
 
@@ -98,6 +98,6 @@ def urls_json(urls, encoding='', headers={}, params={}, s=None, job=8):
     if s is None:
         s = requests.Session()
 
-    params = [[url, encoding, headers, data, params, s] for url in urls]
+    params = [[url, encoding, headers, params, s] for url in urls]
 
     return parallel.init(job)(url_json, params)
