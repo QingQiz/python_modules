@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-
 import requests
-import parallel
+from . import parallel
 
 
 def login_aoxiang(username, password, s=None):
