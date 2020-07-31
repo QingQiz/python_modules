@@ -1,1 +1,1 @@
-__all__ = ['netreq', 'parallel', 'log', 'utils', 'encrypt']
+__all__ = ['netreq', 'parallel', 'log', 'utils', 'cipher']
