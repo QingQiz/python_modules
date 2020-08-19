@@ -42,10 +42,12 @@ def d(msg, end='\n', **kwargs):
     print('[DEBUG]', msg, end=end)
 
 
-def t(msg):
+def t(msg, level=INFO):
     print('[', end='')
     rich.print(f'[bold green]{datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}[/bold green]', end='')
-    print(f'] {msg}', end=' ', flush=True)
+    print('] ')
+    print_head(level)
+    print(msg, flush=True)
 
 
 def yes_or_no(msg):
