@@ -14,13 +14,13 @@ def print_head(level):
         raise TypeError()
 
     print('[', end='')
-    rich.print(level, end='')
+    rich.print(level, end='', flush=True)
     print(']', end=' ')
 
 
 def w(msg):
     print_head(WARN)
-    print(msg)
+    print(msg, flush=True)
 
 
 def e(msg):
@@ -45,7 +45,7 @@ def d(msg, end='\n', **kwargs):
 def t(msg):
     print('[', end='')
     rich.print(f'[bold green]{datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}[/bold green]', end='')
-    print(f'] {msg}', end=' ')
+    print(f'] {msg}', end=' ', flush=True)
 
 
 def yes_or_no(msg):
