@@ -45,7 +45,7 @@ def d(msg, end='\n', **kwargs):
 def t(msg, level=INFO):
     print('[', end='')
     rich.print(f'[bold green]{datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}[/bold green]', end='')
-    print('] ')
+    print(']', end=' ')
     print_head(level)
     print(msg, flush=True)
 
