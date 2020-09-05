@@ -130,7 +130,7 @@ class Aoxiang():
         '''
         :return:
             {
-                'term1': [id1, id2, ...],
+                '学期': [秋学期Id, 春学期Id, 夏学期Id],
                 ...
             }
         '''
@@ -265,7 +265,7 @@ class Aoxiang():
         return res
 
     def classTable(self, timeStart=None, timeEnd=None):
-        '''
+        '''get classtable in json format
         :param timeStart: class time begin date, for example: 2020-08-01, default: today
         :param timeEnd: class time end date, for example: 2020-10-01, default: today + 360 days
         :return:
@@ -311,3 +311,40 @@ class Aoxiang():
 
         assert res['status'] == 'OK', 'wrong response status, error message: ' + res['message']
         return res['data']['events'][2]
+
+    def courseInquiry(self, **kwargs):
+        '''get class information
+        for example:
+            self.classInformation(**{'lesson.no': 'xxx'})
+        possiable parameters:
+            lesson.no:  课程序号 see `self.termId`
+            lesson.course.name: 课程名称
+            lesson.courseType.name: 课程类别
+            lesson.teachDepart.name: 开设院系
+            lesson.teachClass.name: 教学班
+            teacher.name: 教师
+            lesson.course.period: 总课时
+            lesson.teachClass.limitCount: 上限
+            lesson.上课时间: 上课时间
+            lesson.上课地点: 上课地点
+            lesson.course.credits: 学分
+            lesson.coursePeriod: 学时/周
+            lesson.project.id: 1
+            lesson.semester.id: 学期Id, 参见 `self.termId`
+        request example:
+            curl $'http://us.nwpu.edu.cn/eams/stdSyllabus\u0021search.action' \
+                -H 'Cookie: semester.id=98; JSESSIONID=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx; GSESSIONID=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' \
+                --data-raw 'lesson.no=&lesson.course.name=&lesson.courseType.name=&lesson.teachDepart.name=&lesson.teachClass.name=&teacher.name=&lesson.course.period=&lesson.teachClass.limitCount=&lesson.%E4%B8%8A%E8%AF%BE%E6%97%B6%E9%97%B4=&lesson.%E4%B8%8A%E8%AF%BE%E5%9C%B0%E7%82%B9=&lesson.course.credits=&lesson.coursePeriod=&lesson.project.id=1&lesson.semester.id=98&_=1599306961924'
+        '''
+        raise NotImplementedError("TODO")
+    
+    def classInformation(self, classId):
+        '''
+        request example:
+            curl $'http://us.nwpu.edu.cn/eams/stdSyllabus\u0021info.action' \
+                -H 'Cookie: semester.id=98; JSESSIONID=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx; GSESSIONID=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' \
+                --data-raw 'lesson.project.id=1&lesson.semester.id=98&_=1599308698360&params=lesson.project.id%3D1%26lesson.semester.id%3D98%26_%3D1599308698360&lesson.id=130702'
+            params is the form data in `courseInquiry`
+            NOTE: most important parameter is lesson.id and semester.id
+        '''
+        raise NotImplementedError("TODO")
