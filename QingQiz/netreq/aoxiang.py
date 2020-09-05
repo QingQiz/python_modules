@@ -263,3 +263,51 @@ class Aoxiang():
             if json:
                 res[tableIds[tableId]] = json
         return res
+
+    def classTable(self, timeStart=None, timeEnd=None):
+        '''
+        :param timeStart: class time begin date, for example: 2020-08-01, default: today
+        :param timeEnd: class time end date, for example: 2020-10-01, default: today + 360 days
+        :return:
+            [
+                {
+                    'allDay': 'x',
+                    'description': 'null',
+                    'end': '20xx-xx-xx xx:xx:xx',
+                    'location': '[XXXXXX]XXXXXX',
+                    'recurrenceType': 'x',
+                    'repeatEnd': 'x',
+                    'repeatEndDate': '20xx-x-xx xx:xx:xx',
+                    'repeatEndTimes': 'x',
+                    'repeatFrequencyDay': '',
+                    'repeatFrequencyMonth': '',
+                    'repeatFrequencyMonthDay': '',
+                    'repeatFrequencyWeek': '',
+                    'repeatFrequencyWeekDay': '',
+                    'repeatFrequencyYear': '',
+                    'repeatFrequencyYearDay': '',
+                    'repeatFrequencyYearMonth': '',
+                    'start': '20xx-xx-xx xx:xx:xx',
+                    'startTime': '20xxxxxxxxxx00',
+                    'stopTime': '20xxxxxxxxxx00',
+                    'title': 'XXXXXXXXXXXX'
+                }
+            ]
+        '''
+        import datetime
+
+        # login to ecampus.nwpu.edu.cn
+        self.req('https://ecampus.nwpu.edu.cn/portal-web/html/index.html')
+        accessToken = self.session.cookies.get_dict().get('access_token')
+
+        if timeStart is None:
+            timeStart = datetime.date.today().strftime('%Y-%m-%d')
+        if timeEnd is None:
+            timeEnd = (datetime.date.today() + datetime.timedelta(days=360)).strftime('%Y-%m-%d')
+
+        apiUrl = f'https://ecampus.nwpu.edu.cn/portal-web/api/proxy/calendar/api/personal/schedule/getEduEvents?startDate={timeStart}&endDate={timeEnd}&access_token={accessToken}'
+
+        res = self.req(apiUrl).json()
+
+        assert res['status'] == 'OK', 'wrong response status, error message: ' + res['message']
+        return res['data']['events'][2]
