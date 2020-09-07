@@ -294,23 +294,43 @@ class Aoxiang():
                 }
             ]
         '''
-        import datetime
+        import datetime, functools
+        from .. import parallel
 
         # login to ecampus.nwpu.edu.cn
         self.req('https://ecampus.nwpu.edu.cn/portal-web/html/index.html')
         accessToken = self.session.cookies.get_dict().get('access_token')
 
+        timeFormat = '%Y-%m-%d'
+
         if timeStart is None:
-            timeStart = datetime.date.today().strftime('%Y-%m-%d')
+            timeStart = datetime.date.today().strftime(timeFormat)
         if timeEnd is None:
-            timeEnd = (datetime.date.today() + datetime.timedelta(days=360)).strftime('%Y-%m-%d')
+            timeEnd = (datetime.date.today() + datetime.timedelta(days=180)).strftime(timeFormat)
 
-        apiUrl = f'https://ecampus.nwpu.edu.cn/portal-web/api/proxy/calendar/api/personal/schedule/getEduEvents?startDate={timeStart}&endDate={timeEnd}&access_token={accessToken}'
+        # NOTE 这个 API 有问题：当时间间隔超过一周的时候返回的数据会出BUG，所以需要分块请求
+        start = datetime.datetime.strptime(timeStart, timeFormat)
+        end = datetime.datetime.strptime(timeEnd, timeFormat)
 
-        res = self.req(apiUrl).json()
+        params = []
+        while start < end:
+            l = start.strftime(timeFormat)
+            r = (start + datetime.timedelta(days=6)).strftime(timeFormat)
+            params.append([l, r])
 
-        assert res['status'] == 'OK', 'wrong response status, error message: ' + res['message']
-        return res['data']['events'][2]
+            start += datetime.timedelta(days=7)
+
+        def reqTable(l, r):
+            apiUrl = f'https://ecampus.nwpu.edu.cn/portal-web/api/proxy/calendar/api/personal/schedule/getEduEvents?startDate={timeStart}&endDate={timeEnd}&access_token={accessToken}'
+            res = self.req(apiUrl).json()
+
+            assert res['status'] == 'OK', 'wrong response status, error message: ' + res['message']
+            return res['data']['events'][2]
+
+        # request data in parallel
+        ret = parallel.init(16)(reqTable, params)
+
+        return functools.reduce(lambda zero, x: zero + x, ret, [])
 
     def courseInquiry(self, **kwargs):
         '''get class information
@@ -337,7 +357,7 @@ class Aoxiang():
                 --data-raw 'lesson.no=&lesson.course.name=&lesson.courseType.name=&lesson.teachDepart.name=&lesson.teachClass.name=&teacher.name=&lesson.course.period=&lesson.teachClass.limitCount=&lesson.%E4%B8%8A%E8%AF%BE%E6%97%B6%E9%97%B4=&lesson.%E4%B8%8A%E8%AF%BE%E5%9C%B0%E7%82%B9=&lesson.course.credits=&lesson.coursePeriod=&lesson.project.id=1&lesson.semester.id=98&_=1599306961924'
         '''
         raise NotImplementedError("TODO")
-    
+
     def classInformation(self, classId):
         '''
         request example:
