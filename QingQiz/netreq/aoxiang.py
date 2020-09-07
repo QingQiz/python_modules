@@ -314,14 +314,16 @@ class Aoxiang():
 
         params = []
         while start < end:
+            nextStart = start + datetime.timedelta(days=6)
+
             l = start.strftime(timeFormat)
-            r = (start + datetime.timedelta(days=6)).strftime(timeFormat)
+            r = (nextStart if nextStart <= end else end).strftime(timeFormat)
             params.append([l, r])
 
-            start += datetime.timedelta(days=7)
+            start = nextStart + datetime.timedelta(days=1)
 
         def reqTable(l, r):
-            apiUrl = f'https://ecampus.nwpu.edu.cn/portal-web/api/proxy/calendar/api/personal/schedule/getEduEvents?startDate={timeStart}&endDate={timeEnd}&access_token={accessToken}'
+            apiUrl = f'https://ecampus.nwpu.edu.cn/portal-web/api/proxy/calendar/api/personal/schedule/getEduEvents?startDate={l}&endDate={r}&access_token={accessToken}'
             res = self.req(apiUrl).json()
 
             assert res['status'] == 'OK', 'wrong response status, error message: ' + res['message']
@@ -330,7 +332,7 @@ class Aoxiang():
         # request data in parallel
         ret = parallel.init(16)(reqTable, params)
 
-        return functools.reduce(lambda zero, x: zero + x, ret, [])
+        return sorted(functools.reduce(lambda zero, x: zero + x, ret, []), key=lambda x: x['startTime'])
 
     def courseInquiry(self, **kwargs):
         '''get class information
