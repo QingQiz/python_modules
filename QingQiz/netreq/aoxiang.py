@@ -267,7 +267,7 @@ class Aoxiang():
     def classTable(self, timeStart=None, timeEnd=None):
         '''get classtable in json format
         :param timeStart: class time begin date, for example: 2020-08-01, default: today
-        :param timeEnd: class time end date, for example: 2020-10-01, default: today + 360 days
+        :param timeEnd: class time end date, for example: 2020-10-01, default: today + 180 days
         :return:
             [
                 {
