@@ -21,4 +21,10 @@ setuptools.setup(
         "Programming Language :: Python :: 3",
     ],
     python_requires=">=3.6",
+    install_requires=[
+        'python-pam',
+        'requests',
+        'pycryptodome',
+        'rich'
+    ]
 )
