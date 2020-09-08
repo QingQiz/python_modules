@@ -1,13 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import os
-import pam
-
-from getpass import getpass
-
 
 def auth(retry=3):
+    import os, pam
+    from getpass import getpass
+
     username = os.environ['USER']
 
     while retry:

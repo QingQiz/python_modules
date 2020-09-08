@@ -55,6 +55,9 @@ def table2json(html, tableIndex=-1, dataFixer=None):
 
 class Aoxiang():
     _termId = None
+    _xIdToken = None
+    _userInfo = None
+    _accessToken = None
 
     def __init__(self, username, password, session=None):
         '''
@@ -91,7 +94,7 @@ class Aoxiang():
                 'TGC': 'TGT-aaaaa-aaaaaaaaaaaaaaaaaa-aaaaaaaaaaa-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaacas-server-site-webapp-aaaaaaaaa-aaaaa'
             }
         '''
-        assert self.session.cookies.get_dict().get('TGC'), 'wrong username or password'
+        assert self.session.cookies.get_dict().get('TGC'), 'login failed'
 
         # login to us.nwpu.edu.cn
         self.req("http://us.nwpu.edu.cn/eams/sso/login.action")
@@ -112,6 +115,29 @@ class Aoxiang():
             "session_locale": "zh_CN"
         })
 
+    @property
+    def accessToken(self):
+        '''
+        access_toke for some apis of ecampus.nwpu.edu.cn
+        '''
+        if self._accessToken:
+            return self._accessToken
+
+        self.req('https://ecampus.nwpu.edu.cn/portal-web/html/index.html')
+        self._accessToken = self.session.cookies.get_dict().get('access_token')
+        return  self._accessToken
+
+    @property
+    def xIdToken(self):
+        '''
+        x-id-token for some apis of personal-center.nwpu.edu.cn
+        '''
+        if self._xIdToken:
+            return self._xIdToken
+
+        self._xIdToken = self.fullUserInfo['idTokenJWT']
+        return self._xIdToken
+
     def req(self, url, headers={}, data={}, params={}):
         '''
         make a request with current session
@@ -128,7 +154,7 @@ class Aoxiang():
 
     @property
     def termId(self):
-        '''
+        '''term to termId
         :return:
             {
                 '学期': [秋学期Id, 春学期Id, 夏学期Id],
@@ -169,6 +195,36 @@ class Aoxiang():
         self._termId = res
 
         return res
+
+    @property
+    def fullUserInfo(self):
+        '''get full user infomation'''
+        if self._userInfo:
+            return self._userInfo
+
+        res = self.req(f'https://ecampus.nwpu.edu.cn/portal-web/api/rest/portalUser/selectUserInfoByCurrentUser', params={
+            'access_token': self.accessToken
+        }, headers={'Accept': 'application/json, text/javascript, */*; q=0.01'}).json()
+        assert res['status'] == 'OK', 'error on request, message: ' + res['message']
+
+        self._userInfo = res
+        return self._userInfo
+
+    @property
+    def userInfo(self):
+        '''get user information'''
+        res = self.fullUserInfo
+
+        return {
+            'id': res['data']['userInfo']['id'],
+            'name': res['data']['userInfo']['name'],
+            'gender': '男' if res['data']['userInfo']['gender'] == 1 else '女',
+            'mobile': res['data']['userInfo']['mobile'],
+            'email': res['data']['userInfo']['email'],
+            res['data']['userInfo']['identityType']: res['data']['userInfo']['identityNo'],
+            'org': res['data']['org']['name'],
+            'securityUserType': res['data']['securityUserType']['name']
+        }
 
     def grade(self, *terms):
         '''
@@ -354,10 +410,6 @@ class Aoxiang():
         import datetime, functools
         from .. import parallel
 
-        # login to ecampus.nwpu.edu.cn
-        self.req('https://ecampus.nwpu.edu.cn/portal-web/html/index.html')
-        accessToken = self.session.cookies.get_dict().get('access_token')
-
         timeFormat = '%Y-%m-%d'
 
         if timeStart is None:
@@ -380,8 +432,11 @@ class Aoxiang():
             start = nextStart + datetime.timedelta(days=1)
 
         def reqTable(l, r):
-            apiUrl = f'https://ecampus.nwpu.edu.cn/portal-web/api/proxy/calendar/api/personal/schedule/getEduEvents?startDate={l}&endDate={r}&access_token={accessToken}'
-            res = self.req(apiUrl).json()
+            res = self.req('https://ecampus.nwpu.edu.cn/portal-web/api/proxy/calendar/api/personal/schedule/getEduEvents', params={
+                'startDate': l,
+                'endDate': r,
+                'access_token': self.accessToken
+            }).json()
 
             assert res['status'] == 'OK', 'wrong response status, error message: ' + res['message']
             return res['data']['events'][2]
