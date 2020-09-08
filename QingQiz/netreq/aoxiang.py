@@ -2,18 +2,24 @@
 # -*- coding: utf-8 -*-
 
 
-def table2json(html, tableIndex=-1):
-    '''
-    covert table in html to json like
+def table2json(html, tableIndex=-1, dataFixer=None):
+    '''covert table in html to json
+    :param html: html include <table> </table>
+    :param tableIndex: which table to parse
+    :param rowFixer: function to fix table data, for example: `lambda x: return x.replace('xxx', 'yyy')`
+    :return: for example:
         [
             {
                 'table head1': 'table value1'
                 'table head2': 'table value2'
                 'table head3': 'table value3'
-            },
+            }
         ]
     '''
     import re
+
+    if dataFixer is None:
+        dataFixer = lambda x: x
 
     table = re.findall(r'<table.*?</table>', html, re.DOTALL)[-1]
     # do not set regex to r'<th.*>(.*?)</th>', this will match <thead>...<th>...</th>
@@ -39,12 +45,7 @@ def table2json(html, tableIndex=-1):
             \t\t\t\r\n</td>\t\t\r
 
         '''
-        res = []
-        for data in re.findall(r'<td.*?>(.*?)</td>', row, re.DOTALL):
-            if data.find('href') != -1:
-                data = re.search(r'>(.*?)</a>', data, re.DOTALL).group(1)
-            res.append(data.strip())
-        return res
+        return [dataFixer(data) for data in re.findall(r'<td.*?>(.*?)</td>', row, re.DOTALL)]
 
     # tableData: [[data, data]]
     tableData = list(map(row2data, tableRows))
@@ -196,6 +197,11 @@ class Aoxiang():
         import re, functools
         from .. import parallel
 
+        def dataFixer(data: str):
+            if data.find('href') != -1:
+                return re.search(r'>(.*?)</a>', data, re.DOTALL).group(1)
+            return data.strip()
+
         if terms:
             termId = self.termId
 
@@ -209,12 +215,12 @@ class Aoxiang():
             htmls = [self.req(gradeUrl + str(i)).text for i in idSpace]
 
             # parse html to json in parallel
-            res = parallel.init(8)(table2json, [[html] for html in htmls], thread=False)
+            res = parallel.init(8)(lambda x: table2json(x, dataFixer=dataFixer), [[html] for html in htmls], thread=False)
         else:
             allGradeUrl = "http://us.nwpu.edu.cn/eams/teach/grade/course/person!historyCourseGrade.action"
 
             html = self.req(allGradeUrl).text
-            res = [table2json(html)]
+            res = [table2json(html, dataFixer=dataFixer)]
 
         return [i for i in res if i]
 
@@ -255,13 +261,64 @@ class Aoxiang():
         # tableIds will be: {'501': '2019-2020学年秋学期期中考试', '482': '2019-2020秋课程考试', '481': '2019-2020秋补考', ...}
         tableIds = dict(tableIds)
 
+        def dataFixer(data: str):
+            if data.find('href') != -1:
+                return re.search(r'>(.*?)</a>', data, re.DOTALL).group(1)
+            return data.strip()
+
         res = {}
         for tableId in tableIds:
             html = self.req(examTableUrl + tableId).text
-            json = table2json(html)
+            json = table2json(html, dataFixer=dataFixer)
 
             if json:
                 res[tableIds[tableId]] = json
+        return res
+
+    def myCourses(self, term):
+        '''get my course information
+        :param int term: term
+        :return: for example:
+            [
+                {
+                    '学分': 'x',
+                    '序号': 'x',
+                    '操作': '',
+                    '教学大纲': 'xxxxxxx',
+                    '教师': 'xxxxxx',
+                    '校区': 'xxxx',
+                    '考试类型': 'xxxx',
+                    '课程介绍': '课程链接：https://xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+                    '课程代码': 'Uxxxxxxxx',
+                    '课程名称': 'xxxx',
+                    '课程安排': '',
+                    '课程序号': 'Uxxxxxxxx.xx',
+                    '起止周': 'x-x'
+                }
+            ]
+        '''
+        import re
+
+        def dataFixer(data: str):
+            data = data.replace('<br>', '\n').strip()
+
+            if data.find('href') != -1:
+                return re.search(r'>(.*?)</a>', data, re.DOTALL).group(1)
+            return data
+
+        ids = self.req('http://us.nwpu.edu.cn/eams/courseTableForStd.action').text
+        ids = re.search(r'"ids","([0-9]+)"', ids).group(1)
+
+        res = []
+        for t in self.termId[str(term)]:
+            json = table2json(self.req('http://us.nwpu.edu.cn/eams/courseTableForStd!courseTable.action', data={
+                'ignoreHead': 1,
+                'setting.kind': 'std',
+                'startWeek': 1,
+                'semester.id': t,
+                'ids': ids
+            }).text, dataFixer=dataFixer)
+            res += json if json else []
         return res
 
     def classTable(self, timeStart=None, timeEnd=None):
