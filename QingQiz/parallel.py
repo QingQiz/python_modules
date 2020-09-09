@@ -1,57 +1,66 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-from threading import Thread
-from multiprocessing import Pool
 
+class Parallel():
+    def __init__(self, job=None, thead=True):
+        import sys
 
-def init(job=1):
-    def do_with_retry(n, act, args):
-        while n >= 0:
-            try:
-                return act(*args)
-            except:
-                n -= 1
+        self.job = job
 
-
-    def parallel_in_process(target, params_list):
-        global lambda_to_function
-        def lambda_to_function(params):
-            return do_with_retry(3, target, params)
-
-        return Pool(job).map(lambda_to_function, params_list)
-
-
-    def parallel_in_thread(target, params_list):
-        length = len(params_list)
-        step = (length + job - 1) // job
-
-        result = [None for i in range(length)]
-
-        def action(j):
-            for i in range(step * j, min(length, step * (j + 1))):
-                params = params_list[i]
-                result[i] = (do_with_retry(3, target, params))
-
-        pool = [Thread(target=action, args=(i,)) for i in range(job)]
-
-        [i.start() for i in pool]
-        [i.join() for i in pool]
-
-        return result
-
-
-    def parallel_run(target, params_list, thread=True):
-        if len(params_list) == 0:
-            return []
-
-        if job <= 1:
-            return [target(*i) for i in params_list]
-
-        if thread:
-            res = parallel_in_thread(target, params_list)
+        if thead or sys.platform != 'linux':
+            from multiprocessing.pool import ThreadPool as Pool
+            self.pool = Pool(job) if job else Pool()
         else:
-            res = parallel_in_process(target, params_list)
-        return res
+            from multiprocessing import Pool
+            self.pool = Pool(job) if job else Pool()
 
-    return parallel_run
+    def mapN2N(self, funcs, params):
+        def withRetry(func, arg, retryTimes=3):
+            while retryTimes >= 0:
+                try:
+                    return func(*arg)
+                except:
+                    retryTimes -= 1
+
+        def realExec(funcCallPair):
+            return withRetry(*funcCallPair)
+
+        execList = list(zip(funcs, params))
+
+        if len(execList) <= 1 or self.job <= 1:
+            return [realExec(i) for i in execList]
+
+        return self.pool.map(realExec, execList)
+
+    def map(self, func, params):
+        return self.mapN2N([func] * len(params), params)
+
+
+def init(job=None):
+    '''Just for compatibility with past codes
+    init :: Int -> (ParamList -> a) -> [ParamList] -> Bool -> [a]
+
+    usage: for example:
+        a = init(job=8)(lambda x: x + 1, [[i] for i in range(10)])
+        print(a) # a will be [1,2,3,4,5,6,7,8,9,10]
+    '''
+    def run(target, params, thread=True):
+        '''
+        run :: (ParamList -> a) -> [ParamList] -> Bool -> [a]
+        '''
+        return Parallel(job, thread).map(target, params)
+    return run
+
+
+def parallel(params, job=None, thread=True):
+    '''
+    parallel :: Int -> [ParamList] -> Bool -> (ParamList -> a) -> [a]
+
+    usage: for example:
+        @parallel(params=[[i] for i in range(10)], job=8, thread=False)
+        def f(x):
+            return x + 1
+        print(f) # f will be [1,2,3,4,5,6,7,8,9,10]
+    '''
+    return __import__('functools').partial(init(1), params=params, thread=thread)
