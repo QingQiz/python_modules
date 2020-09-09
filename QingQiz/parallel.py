@@ -4,37 +4,31 @@
 
 class Parallel():
     def __init__(self, job=None, thead=True):
-        import sys
-
-        self.job = job
+        import sys, functools
 
         if thead or sys.platform != 'linux':
             from multiprocessing.pool import ThreadPool as Pool
-            self.pool = Pool(job) if job else Pool()
         else:
             from multiprocessing import Pool
-            self.pool = Pool(job) if job else Pool()
-
-    def mapN2N(self, funcs, params):
-        def withRetry(func, arg, retryTimes=3):
-            while retryTimes >= 0:
-                try:
-                    return func(*arg)
-                except:
-                    retryTimes -= 1
-
-        def realExec(funcCallPair):
-            return withRetry(*funcCallPair)
-
-        execList = list(zip(funcs, params))
-
-        if len(execList) <= 1 or self.job <= 1:
-            return [realExec(i) for i in execList]
-
-        return self.pool.map(realExec, execList)
+        self.pool = functools.partial(Pool, job)
 
     def map(self, func, params):
-        return self.mapN2N([func] * len(params), params)
+        global worker
+
+        def initializer(func):
+            global _worker
+            _worker = func
+
+        def worker(arg):
+            n = 3
+            while n >= 0:
+                try:
+                    return _worker(*arg)
+                except:
+                    n -= 1
+
+        with self.pool(initializer=initializer, initargs=(func,)) as p:
+            return p.map(worker, params)
 
 
 def init(job=None):

@@ -198,32 +198,59 @@ class Aoxiang():
 
     @property
     def fullUserInfo(self):
-        '''get full user infomation'''
+        '''get full user infomation
+        :return: please try it
+        '''
+        import re
+
         if self._userInfo:
             return self._userInfo
 
+        # 学生信息，这块在翱翔门户里
         res = self.req(f'https://ecampus.nwpu.edu.cn/portal-web/api/rest/portalUser/selectUserInfoByCurrentUser', params={
             'access_token': self.accessToken
         }, headers={'Accept': 'application/json, text/javascript, */*; q=0.01'}).json()
         assert res['status'] == 'OK', 'error on request, message: ' + res['message']
+
+        # 学籍信息，这块在教务系统里
+        tables = self.req('http://us.nwpu.edu.cn/eams/stdDetail.action').text
+        tables = re.findall(r'<table.*?>(.*?)</table>', tables, re.DOTALL)
+
+        studentStatus = re.findall(r'<td class="title".*?>(.*?)</td>.*?<td>(.*?)</td>', tables[0], re.DOTALL)
+        contact = re.findall(r'<td class.*?>(.*?)</td>[\n\t\r\s]*?<td.*?>(.*?)</td', tables[-2], re.DOTALL)
+
+        procData = lambda data: dict(map(lambda x: (x[0].replace('：', ''), x[1]), data))
+
+        studentStatus = procData(studentStatus)
+        del studentStatus['']
+        contact = procData(contact)
+
+        res['studentStatus'] = studentStatus
+        res['contact'] = contact
 
         self._userInfo = res
         return self._userInfo
 
     @property
     def userInfo(self):
-        '''get user information'''
+        '''get user information
+        :return: please try it
+        '''
         res = self.fullUserInfo
 
         return {
-            'id': res['data']['userInfo']['id'],
-            'name': res['data']['userInfo']['name'],
-            'gender': '男' if res['data']['userInfo']['gender'] == 1 else '女',
-            'mobile': res['data']['userInfo']['mobile'],
-            'email': res['data']['userInfo']['email'],
-            res['data']['userInfo']['identityType']: res['data']['userInfo']['identityNo'],
-            'org': res['data']['org']['name'],
-            'securityUserType': res['data']['securityUserType']['name']
+            "basicInformation": {
+                'id': res['data']['userInfo']['id'],
+                'name': res['data']['userInfo']['name'],
+                'gender': '男' if res['data']['userInfo']['gender'] == 1 else '女',
+                'mobile': res['data']['userInfo']['mobile'],
+                'email': res['data']['userInfo']['email'],
+                res['data']['userInfo']['identityType']: res['data']['userInfo']['identityNo'],
+                'org': res['data']['org']['name'],
+                'securityUserType': res['data']['securityUserType']['name']
+            },
+            "studentStatus": res['studentStatus'],
+            "contact": res['contact'],
         }
 
     def grade(self, *terms):
