@@ -415,18 +415,6 @@ class Aoxiang():
                     'description': 'null',
                     'end': '20xx-xx-xx xx:xx:xx',
                     'location': '[XXXXXX]XXXXXX',
-                    'recurrenceType': 'x',
-                    'repeatEnd': 'x',
-                    'repeatEndDate': '20xx-x-xx xx:xx:xx',
-                    'repeatEndTimes': 'x',
-                    'repeatFrequencyDay': '',
-                    'repeatFrequencyMonth': '',
-                    'repeatFrequencyMonthDay': '',
-                    'repeatFrequencyWeek': '',
-                    'repeatFrequencyWeekDay': '',
-                    'repeatFrequencyYear': '',
-                    'repeatFrequencyYearDay': '',
-                    'repeatFrequencyYearMonth': '',
                     'start': '20xx-xx-xx xx:xx:xx',
                     'startTime': '20xxxxxxxxxx00',
                     'stopTime': '20xxxxxxxxxx00',
@@ -434,7 +422,7 @@ class Aoxiang():
                 }
             ]
         '''
-        import datetime, functools
+        import datetime, functools, json
         from .. import parallel
 
         timeFormat = '%Y-%m-%d'
@@ -471,7 +459,16 @@ class Aoxiang():
         # request data in parallel
         ret = parallel.init(16)(reqTable, params)
 
-        return sorted(functools.reduce(lambda zero, x: zero + x, ret, []), key=lambda x: x['startTime'])
+        ret = sorted(functools.reduce(lambda zero, x: zero + x, ret, []), key=lambda x: x['startTime'])
+
+        for i in ret:
+            toDel = [j for j in i if j[:2] == 're']
+            for x in toDel:
+                del i[x]
+        ret = [json.dumps(i) for i in ret]
+        ret = list(dict.fromkeys(ret))
+        ret = [json.loads(i) for i in ret]
+        return ret
 
     def courseInquiry(self, **kwargs):
         '''get class information
