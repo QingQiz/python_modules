@@ -5,7 +5,7 @@ import requests
 from .. import parallel
 
 
-def req(url, headers={}, data={}, params={}, s=None):
+def req(url, headers={}, data={}, params={}, encoding='', s=None):
     '''
     :param str url: url
     :param dict headers: headers
@@ -23,6 +23,9 @@ def req(url, headers={}, data={}, params={}, s=None):
         r = s.post(url, data=data)
     else:
         r = s.get(url, params=params)
+
+    if encoding:
+        r.encoding = encoding
 
     return r
 
