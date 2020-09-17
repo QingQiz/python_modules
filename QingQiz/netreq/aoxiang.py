@@ -422,7 +422,7 @@ class Aoxiang():
                 }
             ]
         '''
-        import datetime, functools, json
+        import datetime, functools, json, re
         from .. import parallel
 
         timeFormat = '%Y-%m-%d'
@@ -465,6 +465,7 @@ class Aoxiang():
             toDel = [j for j in i if j[:2] == 're']
             for x in toDel:
                 del i[x]
+            i['location'] = re.sub(r'(\[.*?\])(.*)', r'\2', i['location'])
         ret = [json.dumps(i) for i in ret]
         ret = list(dict.fromkeys(ret))
         ret = [json.loads(i) for i in ret]
