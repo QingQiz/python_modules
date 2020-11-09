@@ -507,3 +507,62 @@ class Aoxiang():
             NOTE: most important parameter is lesson.id and semester.id
         '''
         raise NotImplementedError("TODO")
+
+    def yqtb(self):
+        '''疫情填报，叫 yqtb 的原因是他的那个 sb 域名是 yqtb
+
+        :return:
+            {
+                'state': '您已提交今日填报重新提交将覆盖上一次的信息。',
+                '当前所在位置': '在学校',
+                '今天的体温范围': '37.3度以下',
+                '您有无疑似症状?（可多选）': '无',
+                '西安市一码通状态': '绿码'
+            }
+        '''
+        import re
+
+        uid    = self.userInfo['basicInformation']['id']
+        name   = self.userInfo['basicInformation']['name']
+        mobile = self.userInfo['basicInformation']['mobile']
+        org    = self.userInfo['basicInformation']['org']
+
+        data   = {
+            "xasymt": "1",              # 西安市一码通
+            "actionType": "addRbxx",
+            "userLoginId": uid,
+            "fxzt": "9",                # 返校状态
+            "userType": "2",            # 猜不出来
+            "userName": name,
+            "szcsbm": "1",              # 所咋城市编码
+            "szcsmc": "在学校",         # 所在城池名称（为啥是在学校啊）
+            "sfyzz": "0",               # 是否有症状
+            "sfqz": "0",                # 是否确诊
+            "tbly": "sso",              # 填报(？留言)
+            "qtqksm": "",               # 其它情况说明
+            "ycqksm": "",               # ？？情况说明
+            "qrlxzt": "",               # 确认离（？留）校状态
+            "xymc": org,                # 学院名称
+            "xssjhm": mobile,           # 学生手机号码
+        }
+
+        self.req('http://yqtb.nwpu.edu.cn/')
+        self.req('http://yqtb.nwpu.edu.cn/wx/ry/ry_util.jsp', data=data, headers={
+            "Referer": "http://yqtb.nwpu.edu.cn/wx/ry/jrsb.jsp",
+            "Origin": "http://yqtb.nwpu.edu.cn",
+            "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8"
+        })
+
+        r = self.req('http://yqtb.nwpu.edu.cn/wx/ry/jrsb.jsp')
+
+        x = re.findall(r'(?<!>)\n.*div.*weui-cells__title">(.*)</div>', r.text)
+        x = list(filter(lambda x: '时间' not in x and '说明' not in x, x))
+        y = re.findall(r'.*div.*\n.*<p>(.*?)<.*\n.*\n.*\n.*input.*checked.*', r.text)
+        x = list(zip(x, y))
+
+        res = { 'state': re.findall(r'i class=.co4.>(.*?)</i', r.text)[0] }
+
+        for i, j in x:
+            res[i] = j
+
+        return res
