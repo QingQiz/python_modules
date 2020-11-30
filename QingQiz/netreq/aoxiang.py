@@ -345,6 +345,8 @@ class Aoxiang():
         tableIds = dict(tableIds)
 
         def dataFixer(data: str):
+            if data.find('未安排的') != -1:
+                return None
             if data.find('href') != -1:
                 return re.search(r'>(.*?)</a>', data, re.DOTALL).group(1)
             return data.strip()
