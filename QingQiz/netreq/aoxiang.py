@@ -216,7 +216,7 @@ class Aoxiang():
         tables = self.req('http://us.nwpu.edu.cn/eams/stdDetail.action').text
         tables = re.findall(r'<table.*?>(.*?)</table>', tables, re.DOTALL)
 
-        studentStatus = re.findall(r'<td class="title".*?>(.*?)</td>.*?<td>(.*?)</td>', tables[0], re.DOTALL)
+        studentStatus = re.findall(r'<td.*?class="title".*?>(.*?)</td>.*?<td.*?>(.*?)</td>', tables[0], re.DOTALL)
         contact = re.findall(r'<td class.*?>(.*?)</td>[\n\t\r\s]*?<td.*?>(.*?)</td', tables[-2], re.DOTALL)
 
         procData = lambda data: dict(map(lambda x: (x[0].replace('：', ''), x[1]), data))
