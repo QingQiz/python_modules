@@ -214,6 +214,11 @@ class Aoxiang():
 
         # 学籍信息，这块在教务系统里
         tables = self.req('http://us.nwpu.edu.cn/eams/stdDetail.action').text
+
+        action = re.findall(r"bg.Go\('(.*?)'", tables)
+        if action != []:
+            tables = self.req('http://us.nwpu.edu.cn' + action[0]).text
+
         tables = re.findall(r'<table.*?>(.*?)</table>', tables, re.DOTALL)
 
         studentStatus = re.findall(r'<td.*?class="title".*?>(.*?)</td>.*?<td.*?>(.*?)</td>', tables[0], re.DOTALL)
