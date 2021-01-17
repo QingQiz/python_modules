@@ -515,9 +515,10 @@ class Aoxiang():
         '''
         raise NotImplementedError("TODO")
 
-    def yqtb(self):
+    def yqtb(self, location='在学校'):
         '''疫情填报，叫 yqtb 的原因是他的那个 sb 域名是 yqtb
 
+        :param location: 所在地，目前知道的有：在西安、在学校
         :return:
             {
                 'state': '您已提交今日填报重新提交将覆盖上一次的信息。',
@@ -542,7 +543,7 @@ class Aoxiang():
             "userType": "2",            # 猜不出来
             "userName": name,
             "szcsbm": "1",              # 所咋城市编码
-            "szcsmc": "在学校",         # 所在城池名称（为啥是在学校啊）
+            "szcsmc": location,         # 所在城池名称（为啥是在学校啊）
             "sfyzz": "0",               # 是否有症状
             "sfqz": "0",                # 是否确诊
             "tbly": "sso",              # 填报(？留言)
