@@ -515,10 +515,10 @@ class Aoxiang():
         '''
         raise NotImplementedError("TODO")
 
-    def yqtb(self, location='在学校'):
+    def yqtb(self, location='学校'):
         '''疫情填报，叫 yqtb 的原因是他的那个 sb 域名是 yqtb
 
-        :param location: 所在地，目前知道的有：在西安、在学校
+        :param location: 所在地: 西安、学校或你所在的位置如: 龙游县、鸠江区、镇沅彝族哈尼族拉祜族自治县
         :return:
             {
                 'state': '您已提交今日填报重新提交将覆盖上一次的信息。',
@@ -528,12 +528,28 @@ class Aoxiang():
                 '西安市一码通状态': '绿码'
             }
         '''
-        import re
+        import re, json
 
         uid    = self.userInfo['basicInformation']['id']
         name   = self.userInfo['basicInformation']['name']
         mobile = self.userInfo['basicInformation']['mobile']
         org    = self.userInfo['basicInformation']['org']
+
+        locationDict = {
+            "学校": "1",
+            "西安": "2"
+        }
+
+        otherDict = self.req('http://yqtb.nwpu.edu.cn/wx/js/eams.area.data.js')
+        otherDict = re.findall(r'{(.*)}', otherDict.text, re.DOTALL)[0]
+        otherDict = json.loads('{' + otherDict + '}')
+        otherDict = {k: v for v, k in otherDict.items()}
+
+        locationDict = {**locationDict, **otherDict}
+
+        self.locationDict = locationDict
+
+        assert locationDict[location] is not None, "No such place: " + location
 
         data   = {
             "xasymt": "1",              # 西安市一码通
@@ -542,8 +558,8 @@ class Aoxiang():
             "fxzt": "9",                # 返校状态
             "userType": "2",            # 猜不出来
             "userName": name,
-            "szcsbm": "1",              # 所咋城市编码
-            "szcsmc": location,         # 所在城池名称（为啥是在学校啊）
+            "szcsbm": locationDict[location],   # 所咋城市编码
+            "szcsmc": location,         # 所在城池名称（为啥是在学校啊） FIXME 这块似乎得加上省和城市名，懒得改了....
             "sfyzz": "0",               # 是否有症状
             "sfqz": "0",                # 是否确诊
             "tbly": "sso",              # 填报(？留言)
