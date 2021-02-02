@@ -19,3 +19,9 @@ def auth(retry=3):
         except AssertionError:
             retry -= 1
     return '', False
+
+
+def getpass(prompt="Password: "):
+    from getpass import getpass
+
+    return getpass(prompt=prompt)
