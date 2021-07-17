@@ -123,7 +123,7 @@ class Aoxiang:
         if self._xIdToken:
             return self._xIdToken
 
-        self._xIdToken = self.fullUserInfo['idTokenJWT']
+        assert self.fullUserInfo
         return self._xIdToken
 
     def req(self, url, headers={}, data={}, params={}):
@@ -415,19 +415,24 @@ class Aoxiang:
         :return:
             [
                 {
-                    'allDay': 'x',
-                    'description': 'null',
-                    'end': '20xx-xx-xx xx:xx:xx',
-                    'location': '[XXXXXX]XXXXXX',
-                    'start': '20xx-xx-xx xx:xx:xx',
-                    'startTime': '20xxxxxxxxxx00',
-                    'stopTime': '20xxxxxxxxxx00',
-                    'title': 'XXXXXXXXXXXX'
+                    'startTime': 'XX:XX:XX',
+                    'startDate': 'XXXX-XX-XX XX:XX:XX',
+                    'startDateStr': '20XX-XX-XX',
+                    'endTime': 'XX:XX:XX',
+                    'endDate': '20XX-XX-XX XX:XX:XX',
+                    'endDateStr': 'XXXX-XX-XX',
+                    'timezone': 'XXX+XX:XX - XXXXXX',
+                    'address': '[XXXX]XXYYYY'
+                    'title': 'XXXXXXXXXXXX',
+                    'id': 'XXXXXXXXXXXXXXXXXXXXXXXXX',
+                    'color': '',
+                    'calendarName': 'XX',
+                    'isWholeDay': '0',
                 }
             ]
         '''
-        import datetime, functools, json, re
-        from .. import parallel
+        import datetime, functools, random
+        from multiprocessing.pool import ThreadPool as Pool
 
         timeFormat = '%Y-%m-%d'
 
@@ -436,7 +441,6 @@ class Aoxiang:
         if timeEnd is None:
             timeEnd = (datetime.date.today() + datetime.timedelta(days=180)).strftime(timeFormat)
 
-        # NOTE 这个 API 有问题：当时间间隔超过一周的时候返回的数据会出BUG，所以需要分块请求
         start = datetime.datetime.strptime(timeStart, timeFormat)
         end = datetime.datetime.strptime(timeEnd, timeFormat)
 
@@ -450,68 +454,24 @@ class Aoxiang:
 
             start = nextStart + datetime.timedelta(days=1)
 
-        def reqTable(l, r):
-            res = self.req('https://ecampus.nwpu.edu.cn/portal-web/api/proxy/calendar/api/personal/schedule/getEduEvents', params={
-                'startDate': l,
-                'endDate': r
+        def reqTable(args):
+            res = self.req('https://portal-service.nwpu.edu.cn/v1/calendar/share/schedule/getEvents', params={
+                'startDate': args[0],
+                'endDate': args[1],
+                'reqType': 'WeekView',
+                'random_number': random.randint(100, 500)
             }, headers={
                 'x-id-token': self.xIdToken
             }).json()
 
-            assert res['status'] == 'OK', 'wrong response status, error message: ' + res['message']
-            return res['data']['events'][2]
+            assert res['code'] == 0, 'wrong response status, error message: ' + res['message']
+            res = [j for i in res['data']['schedule'].values() for j in i['calendarList']]
+            return res
 
         # request data in parallel
-        ret = parallel.init(16)(reqTable, params)
+        ret = Pool(16).map(reqTable, params)
 
-        ret = sorted(functools.reduce(lambda zero, x: zero + x, ret, []), key=lambda x: x['startTime'])
-
-        for i in ret:
-            toDel = [j for j in i if j[:2] == 're']
-            for x in toDel:
-                del i[x]
-            i['location'] = re.sub(r'(\[.*?\])(.*)', r'\2', i['location'])
-        ret = [json.dumps(i) for i in ret]
-        ret = list(dict.fromkeys(ret))
-        ret = [json.loads(i) for i in ret]
-        return ret
-
-    def courseInquiry(self, **kwargs):
-        '''get class information
-        for example:
-            self.classInformation(**{'lesson.no': 'xxx'})
-        possiable parameters:
-            lesson.no:  课程序号 see `self.termId`
-            lesson.course.name: 课程名称
-            lesson.courseType.name: 课程类别
-            lesson.teachDepart.name: 开设院系
-            lesson.teachClass.name: 教学班
-            teacher.name: 教师
-            lesson.course.period: 总课时
-            lesson.teachClass.limitCount: 上限
-            lesson.上课时间: 上课时间
-            lesson.上课地点: 上课地点
-            lesson.course.credits: 学分
-            lesson.coursePeriod: 学时/周
-            lesson.project.id: 1
-            lesson.semester.id: 学期Id, 参见 `self.termId`
-        request example:
-            curl $'http://us.nwpu.edu.cn/eams/stdSyllabus\u0021search.action' \
-                -H 'Cookie: semester.id=98; JSESSIONID=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx; GSESSIONID=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' \
-                --data-raw 'lesson.no=&lesson.course.name=&lesson.courseType.name=&lesson.teachDepart.name=&lesson.teachClass.name=&teacher.name=&lesson.course.period=&lesson.teachClass.limitCount=&lesson.%E4%B8%8A%E8%AF%BE%E6%97%B6%E9%97%B4=&lesson.%E4%B8%8A%E8%AF%BE%E5%9C%B0%E7%82%B9=&lesson.course.credits=&lesson.coursePeriod=&lesson.project.id=1&lesson.semester.id=98&_=1599306961924'
-        '''
-        raise NotImplementedError("TODO")
-
-    def classInformation(self, classId):
-        '''
-        request example:
-            curl $'http://us.nwpu.edu.cn/eams/stdSyllabus\u0021info.action' \
-                -H 'Cookie: semester.id=98; JSESSIONID=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx; GSESSIONID=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' \
-                --data-raw 'lesson.project.id=1&lesson.semester.id=98&_=1599308698360&params=lesson.project.id%3D1%26lesson.semester.id%3D98%26_%3D1599308698360&lesson.id=130702'
-            params is the form data in `courseInquiry`
-            NOTE: most important parameter is lesson.id and semester.id
-        '''
-        raise NotImplementedError("TODO")
+        return sorted(functools.reduce(lambda zero, x: zero + x, ret, []), key=lambda x: x['startDate'])
 
     def yqtb(self, mobile, location='学校'):
         '''疫情填报，叫 yqtb 的原因是他的那个 sb 域名是 yqtb
