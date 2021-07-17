@@ -53,7 +53,7 @@ def table2json(html, tableIndex=-1, dataFixer=None):
     return [{tableHeader[i]: rowData[i] for i in range(len(tableHeader))} for rowData in tableData]
 
 
-class Aoxiang():
+class Aoxiang:
     _termId = None
     _xIdToken = None
     _userInfo = None
@@ -114,18 +114,6 @@ class Aoxiang():
         self.req('http://us.nwpu.edu.cn/eams/home.action', data={
             "session_locale": "zh_CN"
         })
-
-    @property
-    def accessToken(self):
-        '''
-        access_toke for some apis of ecampus.nwpu.edu.cn
-        '''
-        if self._accessToken:
-            return self._accessToken
-
-        self.req('https://ecampus.nwpu.edu.cn/portal-web/html/index.html')
-        self._accessToken = self.session.cookies.get_dict().get('access_token')
-        return  self._accessToken
 
     @property
     def xIdToken(self):
@@ -198,40 +186,50 @@ class Aoxiang():
 
     @property
     def fullUserInfo(self):
-        '''get full user infomation
+        '''get full user information
         :return: please try it
         '''
-        import re
+        import json
+        import base64
 
         if self._userInfo:
             return self._userInfo
 
+        # 获取 xIdToken, 参考翱翔门户 `webpack:///./src/utils/decodeTicket.js`
+        ticket: str
+        ticket = self.session.get('https://uis.nwpu.edu.cn/cas/login?service=https://ecampus.nwpu.edu.cn/').url.split('=')[-1]
+        ticket = ticket.replace("%2B", '+').replace("%3D", '=').split('.')[1]
+        self._xIdToken = json.loads(base64.b64decode(ticket.encode('utf8')).decode('utf8'))['idToken']
+
         # 学生信息，这块在翱翔门户里
-        res = self.req(f'https://ecampus.nwpu.edu.cn/portal-web/api/rest/portalUser/selectUserInfoByCurrentUser', params={
-            'access_token': self.accessToken
-        }, headers={'Accept': 'application/json, text/javascript, */*; q=0.01'}).json()
-        assert res['status'] == 'OK', 'error on request, message: ' + res['message']
+        # 之前的接口被弃用了，现在的接口获取到的信息少了很多
+        res = self.req(f'https://personal-security-center.nwpu.edu.cn/api/v1/personal/user/info', headers={
+            'Accept': 'application/json, text/javascript, */*; q=0.01',
+            'x-id-token': self.xIdToken
+        }).json()
+        assert res['code'] == 0, 'error on request, message: ' + res['message']
 
         # 学籍信息，这块在教务系统里
-        tables = self.req('http://us.nwpu.edu.cn/eams/stdDetail.action').text
+        # TODO FIXME 研究生没有教务系统，等我上研究生再说，先注释了
+        # tables = self.req('http://us.nwpu.edu.cn/eams/stdDetail.action').text
 
-        action = re.findall(r"bg.Go\('(.*?)'", tables)
-        if action != []:
-            tables = self.req('http://us.nwpu.edu.cn' + action[0]).text
+        # action = re.findall(r"bg.Go\('(.*?)'", tables)
+        # if action != []:
+        #     tables = self.req('http://us.nwpu.edu.cn' + action[0]).text
 
-        tables = re.findall(r'<table.*?>(.*?)</table>', tables, re.DOTALL)
+        # tables = re.findall(r'<table.*?>(.*?)</table>', tables, re.DOTALL)
 
-        studentStatus = re.findall(r'<td.*?class="title".*?>(.*?)</td>.*?<td.*?>(.*?)</td>', tables[0], re.DOTALL)
-        contact = re.findall(r'<td class.*?>(.*?)</td>[\n\t\r\s]*?<td.*?>(.*?)</td', tables[-2], re.DOTALL)
+        # studentStatus = re.findall(r'<td.*?class="title".*?>(.*?)</td>.*?<td.*?>(.*?)</td>', tables[0], re.DOTALL)
+        # contact = re.findall(r'<td class.*?>(.*?)</td>[\n\t\r\s]*?<td.*?>(.*?)</td', tables[-2], re.DOTALL)
 
-        procData = lambda data: dict(map(lambda x: (x[0].replace('：', ''), x[1]), data))
+        # procData = lambda data: dict(map(lambda x: (x[0].replace('：', ''), x[1]), data))
 
-        studentStatus = procData(studentStatus)
-        del studentStatus['']
-        contact = procData(contact)
+        # studentStatus = procData(studentStatus)
+        # del studentStatus['']
+        # contact = procData(contact)
 
-        res['studentStatus'] = studentStatus
-        res['contact'] = contact
+        # res['studentStatus'] = studentStatus
+        # res['contact'] = contact
 
         self._userInfo = res
         return self._userInfo
@@ -245,17 +243,16 @@ class Aoxiang():
 
         return {
             "basicInformation": {
-                'id': res['data']['userInfo']['id'],
-                'name': res['data']['userInfo']['name'],
-                'gender': '男' if res['data']['userInfo']['gender'] == 1 else '女',
-                'mobile': res['data']['userInfo']['mobile'],
-                'email': res['data']['userInfo']['email'],
-                res['data']['userInfo']['identityType']: res['data']['userInfo']['identityNo'],
-                'org': res['data']['org']['name'],
-                'securityUserType': res['data']['securityUserType']['name']
+                'id': res['data']['user']['id'],
+                'name': res['data']['user']['name'],
+                'gender': res['data']['user']['gender'],
+                'mobile': res['data']['user']['phoneNumber'],
+                'email': res['data']['user']['email'],
+                res['data']['user']['certificateType']: res['data']['user']['certificateNumber'],
+                # org 取 accounts 信息中的最后一个，accounts 中可能包含本科和研究生的账号
+                'org': res['data']['accounts'][-1]['organizationName'],
+                'type': res['data']['accounts'][-1]['identityTypeName']
             },
-            "studentStatus": res['studentStatus'],
-            "contact": res['contact'],
         }
 
     def grade(self, *terms):
@@ -456,8 +453,9 @@ class Aoxiang():
         def reqTable(l, r):
             res = self.req('https://ecampus.nwpu.edu.cn/portal-web/api/proxy/calendar/api/personal/schedule/getEduEvents', params={
                 'startDate': l,
-                'endDate': r,
-                'access_token': self.accessToken
+                'endDate': r
+            }, headers={
+                'x-id-token': self.xIdToken
             }).json()
 
             assert res['status'] == 'OK', 'wrong response status, error message: ' + res['message']
@@ -515,10 +513,11 @@ class Aoxiang():
         '''
         raise NotImplementedError("TODO")
 
-    def yqtb(self, location='学校'):
+    def yqtb(self, mobile, location='学校'):
         '''疫情填报，叫 yqtb 的原因是他的那个 sb 域名是 yqtb
 
         :param location: 所在地: 西安、学校或你所在的位置如: 龙游县、鸠江区、镇沅彝族哈尼族拉祜族自治县
+        :param mobile: 电话号码，现在翱翔门户无法拿到完整的电话号码，需要手动给出来
         :return:
             {
                 'state': '您已提交今日填报重新提交将覆盖上一次的信息。',
@@ -532,7 +531,6 @@ class Aoxiang():
 
         uid    = self.userInfo['basicInformation']['id']
         name   = self.userInfo['basicInformation']['name']
-        mobile = self.userInfo['basicInformation']['mobile']
         org    = self.userInfo['basicInformation']['org']
 
         locationDict = {
