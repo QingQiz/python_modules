@@ -465,8 +465,11 @@ class Aoxiang:
             }).json()
 
             assert res['code'] == 0, 'wrong response status, error message: ' + res['message']
-            res = [j for i in res['data']['schedule'].values() for j in i['calendarList']]
-            return res
+
+            if res['data'] is None:
+                return []
+
+            return [j for i in res['data']['schedule'].values() for j in i['calendarList']]
 
         # request data in parallel
         ret = Pool(16).map(reqTable, params)
