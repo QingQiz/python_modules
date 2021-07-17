@@ -6,7 +6,7 @@ import setuptools
 
 setuptools.setup(
     name="QingQiz",
-    version="0.0.2",
+    version="0.0.3",
     author="QingQiz",
     author_email="sofeeys@outlook.com",
     description="..",
