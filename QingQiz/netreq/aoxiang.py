@@ -252,7 +252,7 @@ class Aoxiang:
 
         return {
             "basicInformation": {
-                'id': res['data']['user']['id'],
+                'id': res['data']['accounts'][-1]['accountName'],
                 'name': res['data']['user']['name'],
                 'gender': res['data']['user']['gender'],
                 'mobile': res['data']['user']['phoneNumber'],
