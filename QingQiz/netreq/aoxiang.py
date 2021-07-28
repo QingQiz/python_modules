@@ -96,6 +96,24 @@ class Aoxiang:
         '''
         assert self.session.cookies.get_dict().get('TGC'), 'login failed'
 
+    @property
+    def xIdToken(self):
+        '''
+        x-id-token for some apis of personal-center.nwpu.edu.cn
+        '''
+        if self._xIdToken:
+            return self._xIdToken
+
+        assert self.fullUserInfo
+        return self._xIdToken
+
+    def login_us(self):
+        def is_login_us_success():
+            return self.session.cookies.get_dict().get('GSESSIONID')
+
+        if is_login_us_success():
+            return
+
         # login to us.nwpu.edu.cn
         self.req("http://us.nwpu.edu.cn/eams/sso/login.action")
 
@@ -108,23 +126,12 @@ class Aoxiang:
                 'JSESSIONID': 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
             }
         '''
-        assert self.session.cookies.get_dict().get('GSESSIONID'), 'login to us.nwpu.edu.cn failed.'
+        assert is_login_us_success(), 'login to us.nwpu.edu.cn failed.'
 
         # switch language of us.nwpu.edu.cn to Chinese
         self.req('http://us.nwpu.edu.cn/eams/home.action', data={
             "session_locale": "zh_CN"
         })
-
-    @property
-    def xIdToken(self):
-        '''
-        x-id-token for some apis of personal-center.nwpu.edu.cn
-        '''
-        if self._xIdToken:
-            return self._xIdToken
-
-        assert self.fullUserInfo
-        return self._xIdToken
 
     def req(self, url, headers={}, data={}, params={}):
         '''
@@ -154,6 +161,8 @@ class Aoxiang:
 
         if self._termId:
             return self._termId
+
+        self.login_us()
 
         res = self.req('http://us.nwpu.edu.cn/eams/dataQuery.action', data={
             'dataType': 'semesterCalendar',
@@ -287,6 +296,8 @@ class Aoxiang:
                 return re.search(r'>(.*?)</a>', data, re.DOTALL).group(1)
             return data.strip()
 
+        self.login_us()
+
         if terms:
             termId = self.termId
 
@@ -331,6 +342,8 @@ class Aoxiang:
             }
         '''
         import re, functools
+
+        self.login_us()
 
         examTableUrl = 'http://us.nwpu.edu.cn/eams/stdExamTable!examTable.action?examBatch.id='
 
@@ -392,6 +405,8 @@ class Aoxiang:
             if data.find('href') != -1:
                 return re.search(r'>(.*?)</a>', data, re.DOTALL).group(1)
             return data
+
+        self.login_us()
 
         ids = self.req('http://us.nwpu.edu.cn/eams/courseTableForStd.action').text
         ids = re.search(r'"ids","([0-9]+)"', ids).group(1)
