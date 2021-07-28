@@ -18,6 +18,7 @@ setuptools.setup(
     ],
     python_requires=">=3.6",
     install_requires=[
+        'beautifulsoup4',
         'python-pam',
         'requests',
         'pycryptodome',

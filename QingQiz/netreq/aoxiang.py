@@ -491,11 +491,10 @@ class Aoxiang:
 
         return sorted(functools.reduce(lambda zero, x: zero + x, ret, []), key=lambda x: x['startDate'])
 
-    def yqtb(self, mobile, location='学校'):
+    def yqtb(self, location='学校'):
         '''疫情填报，叫 yqtb 的原因是他的那个 sb 域名是 yqtb
 
         :param location: 所在地: 西安、学校或你所在的位置如: 龙游县、鸠江区、镇沅彝族哈尼族拉祜族自治县
-        :param mobile: 电话号码，现在翱翔门户无法拿到完整的电话号码，需要手动给出来
         :return:
             {
                 'state': '您已提交今日填报重新提交将覆盖上一次的信息。',
@@ -506,6 +505,7 @@ class Aoxiang:
             }
         '''
         import re, json
+        from bs4 import BeautifulSoup
 
         uid    = self.userInfo['basicInformation']['id']
         name   = self.userInfo['basicInformation']['name']
@@ -527,6 +527,14 @@ class Aoxiang:
 
         assert locationDict[location] is not None, "No such place: " + location
 
+        self.req('http://yqtb.nwpu.edu.cn/')
+
+        # fetch mobile number
+        r = self.req('http://yqtb.nwpu.edu.cn/wx/ry/jbxx_v.jsp')
+        soup = BeautifulSoup(r.text, 'html.parser')
+        personalInfoForm = soup.find_all(class_='weui-cells_form')[-1]
+        mobile = personalInfoForm.find('label', text='手机号码：').find_next(class_='weui-cell__value').get_text()
+
         data   = {
             "xasymt": "1",              # 西安市一码通
             "actionType": "addRbxx",
@@ -546,7 +554,6 @@ class Aoxiang:
             "xssjhm": mobile,           # 学生手机号码
         }
 
-        self.req('http://yqtb.nwpu.edu.cn/')
         self.req('http://yqtb.nwpu.edu.cn/wx/ry/ry_util.jsp', data=data, headers={
             "Referer": "http://yqtb.nwpu.edu.cn/wx/ry/jrsb.jsp",
             "Origin": "http://yqtb.nwpu.edu.cn",
