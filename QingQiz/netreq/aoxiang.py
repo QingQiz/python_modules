@@ -491,10 +491,10 @@ class Aoxiang:
 
         return sorted(functools.reduce(lambda zero, x: zero + x, ret, []), key=lambda x: x['startDate'])
 
-    def yqtb(self, location='学校'):
+    def yqtb(self, location='在学校'):
         '''疫情填报，叫 yqtb 的原因是他的那个 sb 域名是 yqtb
 
-        :param location: 所在地: 西安、学校或你所在的位置如: 龙游县、鸠江区、镇沅彝族哈尼族拉祜族自治县
+        :param location: 所在地: 在西安、在学校或你所在的位置如: 龙游县、鸠江区、镇沅彝族哈尼族拉祜族自治县
         :return:
             {
                 'state': '您已提交今日填报重新提交将覆盖上一次的信息。',
@@ -512,8 +512,8 @@ class Aoxiang:
         org    = self.userInfo['basicInformation']['org']
 
         locationDict = {
-            "学校": "1",
-            "西安": "2"
+            "在学校": "1",
+            "在西安": "2"
         }
         locCode = locationDict.get(location)
         if locCode is None:
