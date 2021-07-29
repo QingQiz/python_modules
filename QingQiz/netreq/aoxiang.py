@@ -515,17 +515,35 @@ class Aoxiang:
             "学校": "1",
             "西安": "2"
         }
+        locCode = locationDict.get(location)
+        if locCode is None:
+            codeLocDict = self.req('http://yqtb.nwpu.edu.cn/wx/js/eams.area.data.js')
+            codeLocDict = re.findall(r'{(.*)}', codeLocDict.text, re.DOTALL)[0]
+            codeLocDict = json.loads('{' + codeLocDict + '}')
 
-        otherDict = self.req('http://yqtb.nwpu.edu.cn/wx/js/eams.area.data.js')
-        otherDict = re.findall(r'{(.*)}', otherDict.text, re.DOTALL)[0]
-        otherDict = json.loads('{' + otherDict + '}')
-        otherDict = {k: v for v, k in otherDict.items()}
+            # FIXME: 区有重名
+            otherDict = {k: v for v, k in codeLocDict.items()}
+            locationDict = {**locationDict, **otherDict}
 
-        locationDict = {**locationDict, **otherDict}
+            try:
+                locCode = locationDict[location]
+            except KeyError:
+                raise KeyError(f'No such place: {location}')
 
-        self.locationDict = locationDict
+            # create location name
+            provCode = f'{locCode[:2]}0000'
+            try:
+                provName = codeLocDict[provCode]
+            except KeyError:
+                raise KeyError(f'No such province: {provCode}')
 
-        assert locationDict[location] is not None, "No such place: " + location
+            cityCode = f'{locCode[:4]}00'
+            try:
+                cityName = codeLocDict[cityCode]
+            except KeyError:
+                raise KeyError(f'No such city: {cityCode}')
+
+            location = provName + cityName + location
 
         self.req('http://yqtb.nwpu.edu.cn/')
 
@@ -535,15 +553,15 @@ class Aoxiang:
         personalInfoForm = soup.find_all(class_='weui-cells_form')[-1]
         mobile = personalInfoForm.find('label', text='手机号码：').find_next(class_='weui-cell__value').get_text()
 
-        data   = {
+        data = {
             "xasymt": "1",              # 西安市一码通
             "actionType": "addRbxx",
             "userLoginId": uid,
             "fxzt": "9",                # 返校状态
             "userType": "2",            # 猜不出来
             "userName": name,
-            "szcsbm": locationDict[location],   # 所咋城市编码
-            "szcsmc": location,         # 所在城池名称（为啥是在学校啊） FIXME 这块似乎得加上省和城市名，懒得改了....
+            "szcsbm": locCode,          # 所在城市编码
+            "szcsmc": location,         # 所在城市名称（为啥是在学校啊）
             "sfyzz": "0",               # 是否有症状
             "sfqz": "0",                # 是否确诊
             "tbly": "sso",              # 填报(？留言)
