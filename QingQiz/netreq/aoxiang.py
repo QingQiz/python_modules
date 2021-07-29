@@ -96,6 +96,24 @@ class Aoxiang:
         '''
         assert self.session.cookies.get_dict().get('TGC'), 'login failed'
 
+    @property
+    def xIdToken(self):
+        '''
+        x-id-token for some apis of personal-center.nwpu.edu.cn
+        '''
+        if self._xIdToken:
+            return self._xIdToken
+
+        assert self.fullUserInfo
+        return self._xIdToken
+
+    def login_us(self):
+        def is_login_us_success():
+            return self.session.cookies.get_dict().get('GSESSIONID')
+
+        if is_login_us_success():
+            return
+
         # login to us.nwpu.edu.cn
         self.req("http://us.nwpu.edu.cn/eams/sso/login.action")
 
@@ -108,23 +126,12 @@ class Aoxiang:
                 'JSESSIONID': 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
             }
         '''
-        assert self.session.cookies.get_dict().get('GSESSIONID'), 'login to us.nwpu.edu.cn failed.'
+        assert is_login_us_success(), 'login to us.nwpu.edu.cn failed.'
 
         # switch language of us.nwpu.edu.cn to Chinese
         self.req('http://us.nwpu.edu.cn/eams/home.action', data={
             "session_locale": "zh_CN"
         })
-
-    @property
-    def xIdToken(self):
-        '''
-        x-id-token for some apis of personal-center.nwpu.edu.cn
-        '''
-        if self._xIdToken:
-            return self._xIdToken
-
-        assert self.fullUserInfo
-        return self._xIdToken
 
     def req(self, url, headers={}, data={}, params={}):
         '''
@@ -154,6 +161,8 @@ class Aoxiang:
 
         if self._termId:
             return self._termId
+
+        self.login_us()
 
         res = self.req('http://us.nwpu.edu.cn/eams/dataQuery.action', data={
             'dataType': 'semesterCalendar',
@@ -243,7 +252,7 @@ class Aoxiang:
 
         return {
             "basicInformation": {
-                'id': res['data']['user']['id'],
+                'id': res['data']['accounts'][-1]['accountName'],
                 'name': res['data']['user']['name'],
                 'gender': res['data']['user']['gender'],
                 'mobile': res['data']['user']['phoneNumber'],
@@ -286,6 +295,8 @@ class Aoxiang:
             if data.find('href') != -1:
                 return re.search(r'>(.*?)</a>', data, re.DOTALL).group(1)
             return data.strip()
+
+        self.login_us()
 
         if terms:
             termId = self.termId
@@ -331,6 +342,8 @@ class Aoxiang:
             }
         '''
         import re, functools
+
+        self.login_us()
 
         examTableUrl = 'http://us.nwpu.edu.cn/eams/stdExamTable!examTable.action?examBatch.id='
 
@@ -392,6 +405,8 @@ class Aoxiang:
             if data.find('href') != -1:
                 return re.search(r'>(.*?)</a>', data, re.DOTALL).group(1)
             return data
+
+        self.login_us()
 
         ids = self.req('http://us.nwpu.edu.cn/eams/courseTableForStd.action').text
         ids = re.search(r'"ids","([0-9]+)"', ids).group(1)
@@ -476,11 +491,12 @@ class Aoxiang:
 
         return sorted(functools.reduce(lambda zero, x: zero + x, ret, []), key=lambda x: x['startDate'])
 
-    def yqtb(self, mobile, location='学校'):
+    def yqtb(self, province=None, city=None, location='在学校'):
         '''疫情填报，叫 yqtb 的原因是他的那个 sb 域名是 yqtb
 
-        :param location: 所在地: 西安、学校或你所在的位置如: 龙游县、鸠江区、镇沅彝族哈尼族拉祜族自治县
-        :param mobile: 电话号码，现在翱翔门户无法拿到完整的电话号码，需要手动给出来
+        :param province: 省或直辖市，在学校/在西安可为None
+        :param city: 市，直辖市填市辖区或县，在学校/在西安可为None。
+        :param location: 所在地: 在西安、在学校或你所在的县级行政区如: 龙游县、鸠江区、镇沅彝族哈尼族拉祜族自治县
         :return:
             {
                 'state': '您已提交今日填报重新提交将覆盖上一次的信息。',
@@ -491,36 +507,63 @@ class Aoxiang:
             }
         '''
         import re, json
+        from bs4 import BeautifulSoup
 
         uid    = self.userInfo['basicInformation']['id']
         name   = self.userInfo['basicInformation']['name']
         org    = self.userInfo['basicInformation']['org']
 
         locationDict = {
-            "学校": "1",
-            "西安": "2"
+            "在学校": "1",
+            "在西安": "2"
         }
+        locCode = locationDict.get(location)
+        if locCode is None:
+            locationDict = self.req('http://yqtb.nwpu.edu.cn/wx/js/eams.area.data.js')
+            locationDict = re.findall(r'{(.*)}', locationDict.text, re.DOTALL)[0]
+            locationDict = json.loads('{' + locationDict + '}')
 
-        otherDict = self.req('http://yqtb.nwpu.edu.cn/wx/js/eams.area.data.js')
-        otherDict = re.findall(r'{(.*)}', otherDict.text, re.DOTALL)[0]
-        otherDict = json.loads('{' + otherDict + '}')
-        otherDict = {k: v for v, k in otherDict.items()}
+            # query location code
+            for code, loc in locationDict.items():
+                if code[2:] == '0000' and loc == province:
+                    provCode = code[:2]
+                    break
+            else:
+                raise KeyError(f'No such province: {province}')
 
-        locationDict = {**locationDict, **otherDict}
+            for code, loc in locationDict.items():
+                if code[:2] == provCode and code[4:] == '00' and loc == city:
+                    cityCode = code[:4]
+                    break
+            else:
+                raise KeyError(f'No such city: {province}{city}')
 
-        self.locationDict = locationDict
+            for code, loc in locationDict.items():
+                if code[:4] == cityCode and loc == location:
+                    locCode = code
+                    break
+            else:
+                raise KeyError(f'No such place: {province}{city}{location}')
 
-        assert locationDict[location] is not None, "No such place: " + location
+            location = province + city + location
 
-        data   = {
+        self.req('http://yqtb.nwpu.edu.cn/')
+
+        # fetch mobile number
+        r = self.req('http://yqtb.nwpu.edu.cn/wx/ry/jbxx_v.jsp')
+        soup = BeautifulSoup(r.text, 'html.parser')
+        personalInfoForm = soup.find_all(class_='weui-cells_form')[-1]
+        mobile = personalInfoForm.find('label', text='手机号码：').find_next(class_='weui-cell__value').get_text()
+
+        data = {
             "xasymt": "1",              # 西安市一码通
             "actionType": "addRbxx",
             "userLoginId": uid,
             "fxzt": "9",                # 返校状态
             "userType": "2",            # 猜不出来
             "userName": name,
-            "szcsbm": locationDict[location],   # 所咋城市编码
-            "szcsmc": location,         # 所在城池名称（为啥是在学校啊） FIXME 这块似乎得加上省和城市名，懒得改了....
+            "szcsbm": locCode,          # 所在城市编码
+            "szcsmc": location,         # 所在城市名称（为啥是在学校啊）
             "sfyzz": "0",               # 是否有症状
             "sfqz": "0",                # 是否确诊
             "tbly": "sso",              # 填报(？留言)
@@ -531,7 +574,6 @@ class Aoxiang:
             "xssjhm": mobile,           # 学生手机号码
         }
 
-        self.req('http://yqtb.nwpu.edu.cn/')
         self.req('http://yqtb.nwpu.edu.cn/wx/ry/ry_util.jsp', data=data, headers={
             "Referer": "http://yqtb.nwpu.edu.cn/wx/ry/jrsb.jsp",
             "Origin": "http://yqtb.nwpu.edu.cn",

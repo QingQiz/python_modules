@@ -6,7 +6,7 @@ import setuptools
 
 setuptools.setup(
     name="QingQiz",
-    version="0.0.4",
+    version="0.0.5",
     author="QingQiz",
     author_email="sofeeys@outlook.com",
     description="..",
@@ -16,8 +16,9 @@ setuptools.setup(
     classifiers=[
         "Programming Language :: Python :: 3",
     ],
-    python_requires=">=3.6",
+    python_requires=">=3.7",
     install_requires=[
+        'beautifulsoup4',
         'python-pam',
         'requests',
         'pycryptodome',
