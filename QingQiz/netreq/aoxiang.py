@@ -491,10 +491,12 @@ class Aoxiang:
 
         return sorted(functools.reduce(lambda zero, x: zero + x, ret, []), key=lambda x: x['startDate'])
 
-    def yqtb(self, location='在学校'):
+    def yqtb(self, province=None, city=None, location='在学校'):
         '''疫情填报，叫 yqtb 的原因是他的那个 sb 域名是 yqtb
 
-        :param location: 所在地: 在西安、在学校或你所在的位置如: 龙游县、鸠江区、镇沅彝族哈尼族拉祜族自治县
+        :param province: 省或直辖市，在学校/在西安可为None
+        :param city: 市，直辖市填市辖区或县，在学校/在西安可为None。
+        :param location: 所在地: 在西安、在学校或你所在的县级行政区如: 龙游县、鸠江区、镇沅彝族哈尼族拉祜族自治县
         :return:
             {
                 'state': '您已提交今日填报重新提交将覆盖上一次的信息。',
@@ -517,33 +519,33 @@ class Aoxiang:
         }
         locCode = locationDict.get(location)
         if locCode is None:
-            codeLocDict = self.req('http://yqtb.nwpu.edu.cn/wx/js/eams.area.data.js')
-            codeLocDict = re.findall(r'{(.*)}', codeLocDict.text, re.DOTALL)[0]
-            codeLocDict = json.loads('{' + codeLocDict + '}')
+            locationDict = self.req('http://yqtb.nwpu.edu.cn/wx/js/eams.area.data.js')
+            locationDict = re.findall(r'{(.*)}', locationDict.text, re.DOTALL)[0]
+            locationDict = json.loads('{' + locationDict + '}')
 
-            # FIXME: 区有重名
-            otherDict = {k: v for v, k in codeLocDict.items()}
-            locationDict = {**locationDict, **otherDict}
+            # query location code
+            for code, loc in locationDict.items():
+                if code[2:] == '0000' and loc == province:
+                    provCode = code[:2]
+                    break
+            else:
+                raise KeyError(f'No such province: {province}')
 
-            try:
-                locCode = locationDict[location]
-            except KeyError:
-                raise KeyError(f'No such place: {location}')
+            for code, loc in locationDict.items():
+                if code[:2] == provCode and code[4:] == '00' and loc == city:
+                    cityCode = code[:4]
+                    break
+            else:
+                raise KeyError(f'No such city: {province}{city}')
 
-            # create location name
-            provCode = f'{locCode[:2]}0000'
-            try:
-                provName = codeLocDict[provCode]
-            except KeyError:
-                raise KeyError(f'No such province: {provCode}')
+            for code, loc in locationDict.items():
+                if code[:4] == cityCode and loc == location:
+                    locCode = code
+                    break
+            else:
+                raise KeyError(f'No such place: {province}{city}{location}')
 
-            cityCode = f'{locCode[:4]}00'
-            try:
-                cityName = codeLocDict[cityCode]
-            except KeyError:
-                raise KeyError(f'No such city: {cityCode}')
-
-            location = provName + cityName + location
+            location = province + city + location
 
         self.req('http://yqtb.nwpu.edu.cn/')
 
